@@ -1,0 +1,29 @@
+{
+    "data": {
+        "name": "synthetic",
+        "good_rating_threshold": 0.5,
+        "rating_edge_name": ["user", "rates", "movie"]
+    },
+    "model": {
+        "with_neural_network": false,
+        "num_of_learned_atoms": 0,
+        "num_of_horn_clauses": 4
+    },
+    "training": {
+        "learning_rates": {
+            "horn_layers": 0.05,
+            "neural_net": 1e-5
+        },
+        "num_of_epochs": 300,
+        "batch_size": -1,
+        "loss_fn": "MSELoss",
+        "l1_lambda": 0.2
+    },
+    "evaluation": {
+        "val_size": 0.1,
+        "test_size": 0.2,
+        "lightgcn_lr": 0.05
+    },
+    "results_path": "results/synthetic",
+    "use_final_testset": true
+}

@@ -11,6 +11,7 @@ import pandas as pd
 import matplotlib.patches as patches
 from matplotlib.path import Path
 import numpy as np
+from pandas.io.formats.style import Styler
 
 ### logging ###
 
@@ -83,6 +84,7 @@ class EvaluationConfig:
     val_size: float
     test_size: float
     lightgcn_lr: float
+    lightgcn_epochs: int
 
 @dataclass
 class Config:
@@ -157,7 +159,7 @@ def highlight_max(s):
     is_max = values == values.max()
     return ['font-weight: bold' if v else '' for v in is_max]
 
-def store_df_as_html_and_latex(df_or_styler, html_path, latex_path):
+def store_df_as_html(df_or_styler, html_path):
     styles = [
         {
             'selector': '',
@@ -177,7 +179,7 @@ def store_df_as_html_and_latex(df_or_styler, html_path, latex_path):
         }
     ]
 
-    if isinstance(df_or_styler, pd.io.formats.style.Styler):
+    if isinstance(df_or_styler, Styler):
         styled_df = df_or_styler.set_table_styles(styles)
     else:
         styled_df = df_or_styler.style.set_table_styles(styles)
@@ -185,15 +187,24 @@ def store_df_as_html_and_latex(df_or_styler, html_path, latex_path):
     with open(html_path, "w") as file:
         file.write(styled_df.to_html())
 
+def store_df_as_latex(df_or_styler, latex_path):
+    if isinstance(df_or_styler, Styler):
+        df_or_styler = df_or_styler.data
+
     with open(latex_path, "w") as file:
         # only write the data to tex without styling
         latex_table = f"""\\begin{{table}}
 \\caption{{COMBAK}}
 \\label{{tab:COMBAK}}
-{styled_df.data.to_latex()}\\end{{table}}"""
+{df_or_styler.to_latex()}\\end{{table}}"""
         file.write(latex_table)
 
 def plot_and_save_loss(train_losses, val_losses, filename):
+    # Create the directory if it doesn't exist
+    directory = os.path.dirname(filename)
+    if directory and not os.path.exists(directory):
+        os.makedirs(directory)
+
     plt.figure(figsize=(10, 6))
 
     plt.plot(train_losses, linestyle='-', label='Train Loss')
@@ -336,9 +347,6 @@ def store_flowchart(rules, weights, filepath):
 
 ### Miscellaneous ###
 
-# TEMP
-ONLY_CPU = True
-
 @logging_decorator("Get pytorch device")
 def get_pytorch_device():
     device = None
@@ -347,8 +355,6 @@ def get_pytorch_device():
     elif torch.backends.mps.is_available():
         device = "mps"
     else:
-        device = "cpu"
-    if ONLY_CPU:
         device = "cpu"
     logging.info(f"{device=}")
     return device

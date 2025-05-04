@@ -150,6 +150,7 @@ def predefined_atoms_movielens1m(train_data: HeteroData, edge_index):
         names.extend([f'High avg rating per user ({t}+)'])
     for t in MOVIE_OFTEN_RATED_THRESHOLD:
         names.extend([f'Movie rated often ({t}+)'])
+    names = np.array(names)
 
     return predefined_atoms, names
 

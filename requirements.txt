@@ -1,0 +1,15 @@
+torch==2.4.0
+torchvision
+torchaudio
+torch_scatter==2.1.2
+torch_sparse==0.6.18
+torch_cluster==1.6.3
+torch_spline_conv==1.2.2
+torch-geometric
+pandas
+matplotlib
+seaborn
+scikit-learn
+numpy<2.0
+scikit-surprise
+python-weka-wrapper3

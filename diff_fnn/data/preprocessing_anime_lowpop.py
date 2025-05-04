@@ -111,6 +111,7 @@ def predefined_atoms_anime(train_data: HeteroData, edge_index):
         names.extend([f'High avg rating per user ({t}+)'])
     for t in ITEM_OFTEN_RATED_THRESHOLD:
         names.extend([f'Item rated often ({t}+)'])
+    names = np.array(names)
 
     return predefined_atoms, names
 

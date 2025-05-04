@@ -11,6 +11,8 @@ from torch_geometric.transforms import BaseTransform
 from torch_geometric.typing import EdgeType
 from torch_geometric.utils import negative_sampling
 from diff_fnn.utils import Config
+import pandas as pd
+import os
 
 def get_reverse_edge_name(edge_name: Tuple[str]):
     return (edge_name[2], 'rev_' + edge_name[1], edge_name[0])
@@ -237,6 +239,7 @@ class TemporalLinkSplit(BaseTransform):
     ) -> EdgeStorage:
 
         edge_index = store.edge_index[:, index]
+        edge_label_time = store.time[index]
 
         if hasattr(store, self.key):
             edge_label = store[self.key]
@@ -255,20 +258,25 @@ class TemporalLinkSplit(BaseTransform):
         if neg_edge_index.numel() > 0:
             neg_edge_label = edge_label.new_zeros((neg_edge_index.size(1), ) +
                                                   edge_label.size()[1:])
+            neg_edge_label_time = edge_label_time.new_zeros(neg_edge_index.size(1))
 
         if self.split_labels:
             out[f'pos_{self.key}'] = edge_label
             out[f'pos_{self.key}_index'] = edge_index
+            out[f'pos_{self.key}_time'] = edge_label_time
             if neg_edge_index.numel() > 0:
                 out[f'neg_{self.key}'] = neg_edge_label
                 out[f'neg_{self.key}_index'] = neg_edge_index
+                out[f'neg_{self.key}_time'] = neg_edge_label_time
 
         else:
             if neg_edge_index.numel() > 0:
                 edge_label = torch.cat([edge_label, neg_edge_label], dim=0)
                 edge_index = torch.cat([edge_index, neg_edge_index], dim=-1)
+                edge_label_time = torch.cat([edge_label_time, neg_edge_label_time], dim=0)
             out[self.key] = edge_label
             out[f'{self.key}_index'] = edge_index
+            out[f'{self.key}_time'] = edge_label_time
 
         return out
 
@@ -298,7 +306,28 @@ def get_train_plus_val_data(train_data: HeteroData, val_data: HeteroData, test_d
             train_data[edge_type].edge_label_index,
             val_data[edge_type].edge_label_index
         ))
+        train_plus_val_data[edge_type].edge_label_time = torch.hstack((
+            train_data[edge_type].edge_label_time,
+            val_data[edge_type].edge_label_time
+        ))
     return train_plus_val_data
+
+def store_graph_data_as_csv(config: Config, graph_data:HeteroData, csv_path):
+    os.makedirs(os.path.dirname(csv_path), exist_ok=True)
+
+    rating_edge_name = config.data.rating_edge_name
+    user_indices_np = graph_data[rating_edge_name].edge_label_index[0].numpy()
+    item_indices_np = graph_data[rating_edge_name].edge_label_index[1].numpy()
+    ratings_np = graph_data[rating_edge_name].edge_label.numpy()
+    timestamps_np = graph_data[rating_edge_name].edge_label_time.numpy()
+    df = pd.DataFrame({
+        'userID': user_indices_np,
+        'itemID': item_indices_np,
+        'rating': ratings_np,
+        'timestamp': timestamps_np
+    })
+    df = df.sort_values(by='userID')
+    df.to_csv(csv_path, index=False)
 
 def train_test_split(config: Config, data: HeteroData):
     train_data, val_data, test_data = TemporalLinkSplit(
@@ -316,4 +345,9 @@ def train_test_split(config: Config, data: HeteroData):
     val_data = T.ToUndirected()(val_data)
     train_plus_val_data = T.ToUndirected()(train_plus_val_data)
     test_data = T.ToUndirected()(test_data)
+    # Store the data also as csv files
+    store_graph_data_as_csv(config, train_data, os.path.join('data', config.data.name, 'processed/train_ratings.csv'))
+    store_graph_data_as_csv(config, val_data, os.path.join('data', config.data.name, 'processed/val_ratings.csv'))
+    store_graph_data_as_csv(config, train_plus_val_data, os.path.join('data', config.data.name, 'processed/train_plus_val_ratings.csv'))
+    store_graph_data_as_csv(config, test_data, os.path.join('data', config.data.name, 'processed/test_ratings.csv'))
     return train_data, val_data, train_plus_val_data, test_data
